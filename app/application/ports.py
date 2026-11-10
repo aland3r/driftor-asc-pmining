@@ -1,0 +1,50 @@
+"""Portas que a camada de aplicação espera; a infraestrutura as implementa."""
+
+from __future__ import annotations
+
+from dataclasses import dataclass
+from typing import Protocol
+
+from app.domain.model import Activity, GraphEdge, Process, Trace
+
+
+@dataclass
+class ParsedLog:
+    format: str
+    traces: list[Trace]
+
+
+class LogParser(Protocol):
+    def parse(self, content: bytes, file_name: str) -> ParsedLog: ...
+
+
+class GraphMiner(Protocol):
+    def edges(self, traces: list[Trace]) -> list[GraphEdge]: ...
+
+
+class ProcessRepository(Protocol):
+    def add(self, process: Process, traces: list[Trace]) -> None: ...
+    def get(self, process_id: str) -> Process | None: ...
+    def list(self) -> list[Process]: ...
+    def save(self, process: Process) -> None: ...
+    def traces(self, process_id: str) -> list[Trace]: ...
+    def replace_traces(self, process_id: str, traces: list[Trace]) -> None: ...
+    def delete(self, process_id: str) -> bool: ...
+
+
+class ActivityRepository(Protocol):
+    def list(self) -> list[Activity]: ...
+    def add(self, name: str) -> Activity: ...
+    def ensure(self, names: list[str]) -> None: ...
+
+
+class EventPublisher(Protocol):
+    def publish(self, queue: str, body: dict) -> None: ...
+
+
+class Clock(Protocol):
+    def now(self): ...
+
+
+class IdGenerator(Protocol):
+    def new_id(self) -> str: ...

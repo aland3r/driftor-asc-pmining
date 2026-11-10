@@ -1,0 +1,79 @@
+name: ci
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+env:
+  IMAGE: docker.io/aland3r/driftor-asc-pmining
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+      - run: pip install -r requirements-dev.txt
+      - name: testes unitários e de arquitetura
+        run: pytest -q
+
+  image:
+    needs: test
+    if: github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: verifica secrets do docker hub
+        id: hub
+        run: echo "ok=${{ secrets.DOCKERHUB_TOKEN != '' }}" >> "$GITHUB_OUTPUT"
+      - uses: docker/login-action@v3
+        if: steps.hub.outputs.ok == 'true'
+        with:
+          username: ${{ secrets.DOCKERHUB_USERNAME }}
+          password: ${{ secrets.DOCKERHUB_TOKEN }}
+      - uses: docker/build-push-action@v6
+        if: steps.hub.outputs.ok == 'true'
+        with:
+          context: .
+          push: true
+          tags: |
+            ${{ env.IMAGE }}:v1
+            ${{ env.IMAGE }}:${{ github.sha }}
+
+  deploy:
+    needs: image
+    if: github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: verifica token do fly
+        id: fly
+        run: echo "ok=${{ secrets.FLY_API_TOKEN != '' }}" >> "$GITHUB_OUTPUT"
+      - uses: superfly/flyctl-actions/setup-flyctl@master
+        if: steps.fly.outputs.ok == 'true'
+      - name: cria o app no fly (primeira vez)
+        if: steps.fly.outputs.ok == 'true'
+        run: flyctl apps create driftor-asc-pmining || true
+        env:
+          FLY_API_TOKEN: ${{ secrets.FLY_API_TOKEN }}
+      - name: secrets do serviço
+        if: steps.fly.outputs.ok == 'true'
+        run: |
+          args=()
+          [ -n "$MONGODB_URI" ] && args+=("MONGODB_URI=$MONGODB_URI")
+          [ -n "$SERVICEBUS_CONNECTION" ] && args+=("SERVICEBUS_CONNECTION=$SERVICEBUS_CONNECTION")
+          [ ${#args[@]} -gt 0 ] && flyctl secrets set --stage -a driftor-asc-pmining "${args[@]}" || true
+        env:
+          FLY_API_TOKEN: ${{ secrets.FLY_API_TOKEN }}
+          MONGODB_URI: ${{ secrets.MONGODB_URI }}
+          SERVICEBUS_CONNECTION: ${{ secrets.SERVICEBUS_CONNECTION }}
+      - name: deploy a partir da imagem do docker hub
+        if: steps.fly.outputs.ok == 'true'
+        run: flyctl deploy --remote-only --image ${{ env.IMAGE }}:${{ github.sha }} --ha=false
+        env:
+          FLY_API_TOKEN: ${{ secrets.FLY_API_TOKEN }}

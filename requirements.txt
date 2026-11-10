@@ -1,0 +1,8 @@
+fastapi==0.162.2
+pydantic==2.14.3
+uvicorn[standard]==0.34.0
+python-multipart==0.0.33
+pandas==2.3.3
+pm4py==2.7.19.8
+pymongo==4.10.1
+azure-servicebus==7.13.0

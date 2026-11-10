@@ -1,0 +1,37 @@
+[importlinter]
+root_package = app
+
+[importlinter:contract:layers]
+name = Camadas da Clean Architecture
+type = layers
+layers =
+    app.api
+    app.infrastructure
+    app.application
+    app.domain
+
+[importlinter:contract:domain-pure]
+name = Domínio sem dependências externas
+type = forbidden
+source_modules = app.domain
+forbidden_modules =
+    fastapi
+    pymongo
+    pandas
+    pm4py
+    azure
+allow_indirect_imports = True
+
+[importlinter:contract:slices]
+name = Fatias verticais independentes
+type = independence
+modules =
+    app.application.upload_process
+    app.application.map_operations
+    app.application.list_processes
+    app.application.get_process
+    app.application.rename_process
+    app.application.delete_process
+    app.application.get_series
+    app.application.list_traces
+    app.application.activities
