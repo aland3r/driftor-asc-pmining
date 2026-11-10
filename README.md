@@ -84,6 +84,4 @@ Os quatro logs sintéticos do artigo do IPDD/ADWIN (`ST_20`, `DR_20`, `DR_MS_20`
 ## Grupo
 
 - Alander Menezes Arantes de Ávila
-- Bernardo Creplive Vieira
 - Emanuelle Skolut Jose
-- Murilo Regnier Stange
