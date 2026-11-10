@@ -36,6 +36,9 @@ class MemoryProcesses:
     def replace_traces(self, process_id, traces):
         self.trace_store[process_id] = copy.deepcopy(traces)
 
+    def reset_traces(self, process_id, traces):
+        self.trace_store[process_id] = copy.deepcopy(traces)
+
     def delete(self, process_id):
         self.trace_store.pop(process_id, None)
         return self.processes.pop(process_id, None) is not None
@@ -48,16 +51,18 @@ class MemoryActivities:
     def list(self):
         return list(self.items)
 
-    def add(self, name):
-        a = Activity(id=f"a{len(self.items)}", name=name)
+    def add(self, name, description=""):
+        a = Activity(id=f"a{len(self.items)}", name=name, description=description)
         self.items.append(a)
         return a
 
-    def ensure(self, names):
-        known = {a.name.casefold() for a in self.items}
-        for n in names:
-            if n.casefold() not in known:
-                self.add(n)
+    def ensure(self, activities):
+        known = {a.name.casefold(): a for a in self.items}
+        for name, description in activities.items():
+            if name.casefold() not in known:
+                self.add(name, description)
+            elif description:
+                known[name.casefold()].description = description
 
 
 class FixedClock:

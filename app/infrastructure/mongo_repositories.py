@@ -62,6 +62,11 @@ class MongoProcessRepository:
                 ordered=False,
             )
 
+    def reset_traces(self, process_id: str, traces: list[Trace]) -> None:
+        self._db.traces.delete_many({"processId": process_id})
+        if traces:
+            self._db.traces.insert_many([_trace_doc(process_id, t) for t in traces], ordered=False)
+
     def delete(self, process_id: str) -> bool:
         deleted = self._db.processes.delete_one({"_id": process_id}).deleted_count > 0
         self._db.traces.delete_many({"processId": process_id})
@@ -73,20 +78,21 @@ class MongoActivityRepository:
         self._db = db
 
     def list(self) -> list[Activity]:
-        return [Activity(id=d["_id"], name=d["name"]) for d in self._db.activities.find()]
+        return [Activity(id=d["_id"], name=d["name"], description=d.get("description", "")) for d in self._db.activities.find()]
 
-    def add(self, name: str) -> Activity:
-        activity = Activity(id=str(uuid.uuid4()), name=name)
-        self._db.activities.insert_one({"_id": activity.id, "name": name, "nameKey": name.casefold()})
+    def add(self, name: str, description: str = "") -> Activity:
+        activity = Activity(id=str(uuid.uuid4()), name=name, description=description)
+        self._db.activities.insert_one({"_id": activity.id, "name": name, "nameKey": name.casefold(), "description": description})
         return activity
 
-    def ensure(self, names: list[str]) -> None:
-        for name in names:
-            self._db.activities.update_one(
-                {"nameKey": name.casefold()},
-                {"$setOnInsert": {"_id": str(uuid.uuid4()), "name": name, "nameKey": name.casefold()}},
-                upsert=True,
-            )
+    def ensure(self, activities: dict[str, str]) -> None:
+        for name, description in activities.items():
+            update: dict = {"$setOnInsert": {"_id": str(uuid.uuid4()), "name": name, "nameKey": name.casefold()}}
+            if description:
+                update["$set"] = {"description": description}
+            else:
+                update["$setOnInsert"]["description"] = ""
+            self._db.activities.update_one({"nameKey": name.casefold()}, update, upsert=True)
 
 
 def _process_doc(p: Process) -> dict:

@@ -5,6 +5,7 @@ from __future__ import annotations
 from dataclasses import dataclass
 
 from app.application.activities.handler import ActivitiesHandler
+from app.application.create_process.handler import CreateProcessHandler
 from app.application.delete_process.handler import DeleteProcessHandler
 from app.application.get_process.handler import GetProcessHandler
 from app.application.get_series.handler import GetSeriesHandler
@@ -12,12 +13,13 @@ from app.application.list_processes.handler import ListProcessesHandler
 from app.application.list_traces.handler import ListTracesHandler
 from app.application.map_operations.handler import MapOperationsHandler
 from app.application.rename_process.handler import RenameProcessHandler
-from app.application.upload_process.handler import UploadProcessHandler
+from app.application.upload_log.handler import UploadLogHandler
 
 
 @dataclass
 class Container:
-    upload_process: UploadProcessHandler
+    create_process: CreateProcessHandler
+    upload_log: UploadLogHandler
     map_operations: MapOperationsHandler
     list_processes: ListProcessesHandler
     get_process: GetProcessHandler
@@ -30,7 +32,8 @@ class Container:
 
 def build_container(processes, activities, parser, miner, publisher, clock, ids) -> Container:
     return Container(
-        upload_process=UploadProcessHandler(parser, processes, activities, clock, ids),
+        create_process=CreateProcessHandler(processes, clock, ids),
+        upload_log=UploadLogHandler(parser, processes, activities, clock),
         map_operations=MapOperationsHandler(processes, activities, miner, clock),
         list_processes=ListProcessesHandler(processes),
         get_process=GetProcessHandler(processes),

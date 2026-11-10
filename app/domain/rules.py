@@ -33,6 +33,29 @@ def suggest_activity(raw_label: str, catalog: list[Activity]) -> str:
     return normalize_name(raw_label)
 
 
+def build_operations(traces: list[Trace], catalog: list[Activity]) -> list[Operation]:
+    """Uma operação por rótulo bruto do log, da mais frequente para a menos frequente."""
+    occurrences: dict[str, int] = defaultdict(int)
+    case_ids: dict[str, set[str]] = defaultdict(set)
+    durations: dict[str, list[float]] = defaultdict(list)
+    for trace in traces:
+        for event in trace.events:
+            occurrences[event.raw_label] += 1
+            case_ids[event.raw_label].add(trace.case_id)
+            if event.duration_seconds is not None:
+                durations[event.raw_label].append(event.duration_seconds)
+    return [
+        Operation(
+            raw_label=label,
+            occurrence_count=count,
+            case_count=len(case_ids[label]),
+            mean_duration_seconds=round(sum(durations[label]) / len(durations[label]), 3) if durations[label] else 0.0,
+            suggested_activity=suggest_activity(label, catalog),
+        )
+        for label, count in sorted(occurrences.items(), key=lambda item: (-item[1], item[0]))
+    ]
+
+
 def validate_mapping(operations: list[Operation], mapping: dict[str, str]) -> dict[str, str]:
     """Todo rótulo bruto precisa de uma atividade não vazia."""
     known = {op.raw_label for op in operations}

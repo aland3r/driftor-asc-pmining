@@ -11,6 +11,7 @@ from enum import Enum
 
 
 class ProcessStatus(str, Enum):
+    EMPTY = "vazio"
     MAPPING = "mapeando"
     READY = "pronto"
 
@@ -107,6 +108,7 @@ class Process:
 class Activity:
     id: str
     name: str
+    description: str = ""
 
 
 @dataclass

@@ -15,9 +15,9 @@ class ActivitiesHandler:
     def list(self) -> list[Activity]:
         return sorted(self._activities.list(), key=lambda a: a.name.casefold())
 
-    def create(self, name: str) -> Activity:
+    def create(self, name: str, description: str = "") -> Activity:
         clean = normalize_name(name)
         if not clean:
             raise InvalidInput("Informe o nome da atividade.")
         existing = next((a for a in self._activities.list() if a.name.casefold() == clean.casefold()), None)
-        return existing or self._activities.add(clean)
+        return existing or self._activities.add(clean, description.strip())

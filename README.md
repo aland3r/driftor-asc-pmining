@@ -16,8 +16,9 @@ O front não chama este serviço direto: o caminho é front → API Management �
 
 | Método | Rota | Para quê |
 |---|---|---|
-| `POST` | `/processes` | Cria o processo a partir de um `.xes` ou `.csv` (multipart: `name`, `file`). Volta com status `mapeando` e a atividade sugerida para cada operação. |
-| `PUT` | `/processes/{id}/operations` | Grava o mapeamento operação → atividade, gera grafo e variantes. Status `pronto`. |
+| `POST` | `/processes` | Cria o processo vazio, só com o nome (JSON `{ "name" }`). Status `vazio`. |
+| `POST` | `/processes/{id}/log` | Carrega o log `.xes` ou `.csv` (multipart: `file`). Volta com status `mapeando` e a atividade sugerida para cada operação. Um novo log substitui o anterior. |
+| `PUT` | `/processes/{id}/operations` | Grava o mapeamento operação → atividade (com descrição opcional da atividade), gera grafo e variantes. Status `pronto`. |
 | `GET` | `/processes` | Lista os processos. |
 | `GET` | `/processes/{id}` | Detalhe com operações, grafo (nós com frequência e desempenho) e variantes. |
 | `PATCH` | `/processes/{id}` | Renomeia. |
@@ -34,7 +35,7 @@ Clean Architecture com fatias verticais:
 app/
   domain/          entidades e regras puras (variantes, métricas, série); sem bibliotecas externas
   application/     uma pasta por caso de uso, cada uma com seu handler
-    upload_process/  map_operations/  list_processes/  get_process/
+    create_process/  upload_log/  map_operations/  list_processes/  get_process/
     rename_process/  delete_process/   get_series/      list_traces/  activities/
     ports.py         interfaces que a infraestrutura implementa
   infrastructure/  MongoDB (pymongo), leitura XES/CSV (pandas + PM4Py), grafo DFG (PM4Py), Service Bus

@@ -3,7 +3,7 @@
 
 from typing import Annotated
 
-from fastapi import Depends, FastAPI, File, Form, HTTPException, Query, Request, UploadFile
+from fastapi import Depends, FastAPI, File, HTTPException, Query, Request, UploadFile
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse, Response
 
@@ -11,6 +11,7 @@ from app.api.container import Container
 from app.api.schemas import (
     ActivityIn,
     ActivityOut,
+    CreateProcessIn,
     MappingIn,
     ProcessOut,
     ProcessSummaryOut,
@@ -22,7 +23,7 @@ from app.api.schemas import (
     summary,
     trace_out,
 )
-from app.application.upload_process.handler import UploadProcess
+from app.application.upload_log.handler import UploadLog
 from app.domain.errors import DomainError, NotFound
 
 TAG_PROCESSES = "Processos"
@@ -66,17 +67,23 @@ def create_app(container_factory=None, cors_origins: list[str] | None = None) ->
         return {"status": "ok", "service": "pmining"}
 
     @app.post("/processes", response_model=ProcessOut, status_code=201, tags=[TAG_PROCESSES],
-              summary="Cria um processo a partir de um event log (status 'mapeando')")
-    async def upload_process(c: C, name: Annotated[str, Form()], file: Annotated[UploadFile, File()]):
+              summary="Cria um processo vazio, só com o nome (status 'vazio')")
+    def create_process(c: C, body: CreateProcessIn):
+        return process_out(c.create_process.handle(body.name))
+
+    @app.post("/processes/{process_id}/log", response_model=ProcessOut, tags=[TAG_PROCESSES],
+              summary="Carrega o event log (XES/CSV) do processo e devolve as operações a mapear (status 'mapeando')")
+    async def upload_log(c: C, process_id: str, file: Annotated[UploadFile, File()]):
         content = await file.read()
-        process = c.upload_process.handle(UploadProcess(name=name, file_name=file.filename or "", content=content))
+        process = c.upload_log.handle(UploadLog(process_id=process_id, file_name=file.filename or "", content=content))
         return process_out(process)
 
     @app.put("/processes/{process_id}/operations", response_model=ProcessOut, tags=[TAG_PROCESSES],
              summary="Mapeia operações para atividades e gera grafo e variantes (status 'pronto')")
     def map_operations(c: C, process_id: str, body: MappingIn):
         mapping = {item.raw_label: item.activity for item in body.operations}
-        return process_out(c.map_operations.handle(process_id, mapping))
+        descriptions = {item.activity: item.description for item in body.operations if item.description.strip()}
+        return process_out(c.map_operations.handle(process_id, mapping, descriptions))
 
     @app.get("/processes", response_model=list[ProcessSummaryOut], tags=[TAG_PROCESSES], summary="Lista os processos")
     def list_processes(c: C):
@@ -118,7 +125,7 @@ def create_app(container_factory=None, cors_origins: list[str] | None = None) ->
 
     @app.post("/activities", response_model=ActivityOut, status_code=201, tags=[TAG_ACTIVITIES], summary="Cria uma atividade")
     def create_activity(c: C, body: ActivityIn):
-        return ActivityOut.model_validate(c.activities.create(body.name))
+        return ActivityOut.model_validate(c.activities.create(body.name, body.description))
 
     return app
 

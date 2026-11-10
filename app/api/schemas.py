@@ -105,10 +105,16 @@ class SeriesOut(Schema):
 class ActivityOut(Schema):
     id: str
     name: str
+    description: str = ""
 
 
 class ActivityIn(Schema):
     name: str = Field(min_length=1, max_length=120)
+    description: str = Field(default="", max_length=280)
+
+
+class CreateProcessIn(Schema):
+    name: str = Field(min_length=1, max_length=160)
 
 
 class RenameIn(Schema):
@@ -118,6 +124,7 @@ class RenameIn(Schema):
 class MappingItemIn(Schema):
     raw_label: str
     activity: str
+    description: str = Field(default="", max_length=280)
 
 
 class MappingIn(Schema):

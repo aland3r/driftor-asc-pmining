@@ -1,5 +1,6 @@
 [importlinter]
 root_package = app
+include_external_packages = True
 
 [importlinter:contract:layers]
 name = Camadas da Clean Architecture
@@ -26,7 +27,8 @@ allow_indirect_imports = True
 name = Fatias verticais independentes
 type = independence
 modules =
-    app.application.upload_process
+    app.application.create_process
+    app.application.upload_log
     app.application.map_operations
     app.application.list_processes
     app.application.get_process

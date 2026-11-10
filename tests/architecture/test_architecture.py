@@ -9,12 +9,14 @@ ROOT = Path(__file__).resolve().parents[2]
 
 def test_import_contracts_hold():
     result = subprocess.run(
-        [sys.executable, "-m", "importlinter.cli", "--config", str(ROOT / ".importlinter")],
+        [sys.executable, "-c", "from importlinter.cli import lint_imports_command; lint_imports_command()",
+         "--config", str(ROOT / ".importlinter")],
         cwd=ROOT,
         capture_output=True,
         text=True,
     )
     assert result.returncode == 0, result.stdout + result.stderr
+    assert "3 kept, 0 broken" in result.stdout, result.stdout
 
 
 def test_every_feature_slice_has_a_handler():

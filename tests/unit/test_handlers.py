@@ -1,13 +1,45 @@
 import pytest
 
-from app.application.upload_process.handler import UploadProcess
+from app.application.upload_log.handler import UploadLog
 from app.domain.errors import InvalidInput, NotFound
 from app.domain.model import ProcessStatus
 from tests.fakes import CSV_LOG, memory_container, xes
 
 
 def upload(c, name="Torno", content=CSV_LOG, file_name="torno.csv"):
-    return c.upload_process.handle(UploadProcess(name=name, file_name=file_name, content=content))
+    process = c.create_process.handle(name)
+    return c.upload_log.handle(UploadLog(process_id=process.id, file_name=file_name, content=content))
+
+
+def test_create_process_starts_empty_and_cannot_be_mapped():
+    c, *_ = memory_container()
+    process = c.create_process.handle(" Torno  01 ")
+    assert process.name == "Torno 01" and process.status == ProcessStatus.EMPTY
+    assert process.operations == [] and process.trace_count == 0
+    with pytest.raises(InvalidInput):
+        c.map_operations.handle(process.id, {})
+
+
+def test_new_log_replaces_previous_one():
+    c, processes, _, _ = memory_container()
+    process = upload(c)
+    c.map_operations.handle(process.id, {"Alimentacao": "A", "Usinagem": "U", "Retirada": "R"})
+    small = "\n".join(CSV_LOG.decode().splitlines()[:4]).encode()
+    again = c.upload_log.handle(UploadLog(process_id=process.id, file_name="t2.csv", content=small))
+    assert again.status == ProcessStatus.MAPPING and again.graph is None and again.variants == []
+    assert again.trace_count == 1 and len(processes.traces(process.id)) == 1
+
+
+def test_mapping_saves_optional_descriptions_in_catalog():
+    c, _, activities, _ = memory_container(catalog=["Usinagem"])
+    process = upload(c)
+    c.map_operations.handle(
+        process.id,
+        {"Alimentacao": "Alimentação", "Usinagem": "Usinagem", "Retirada": "Retirada"},
+        {"alimentação": "Peça entra na máquina", "Usinagem": "Corte"},
+    )
+    by_name = {a.name: a.description for a in activities.list()}
+    assert by_name == {"Usinagem": "Corte", "Alimentação": "Peça entra na máquina", "Retirada": ""}
 
 
 def test_upload_returns_operations_with_suggestions():
@@ -27,6 +59,8 @@ def test_upload_rejects_empty_name_and_unknown_format():
         upload(c, name="  ")
     with pytest.raises(InvalidInput):
         upload(c, file_name="log.txt")
+    with pytest.raises(NotFound):
+        c.upload_log.handle(UploadLog(process_id="nope", file_name="t.csv", content=CSV_LOG))
 
 
 def test_mapping_builds_graph_variants_and_catalog():

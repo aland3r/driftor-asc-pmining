@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 from app.application.ports import ActivityRepository, Clock, GraphMiner, ProcessRepository
-from app.domain.errors import NotFound
+from app.domain.errors import InvalidInput, NotFound
 from app.domain.model import Process, ProcessStatus
 from app.domain.rules import apply_mapping, build_variants, merge_graph, node_metrics, validate_mapping
 
@@ -15,14 +15,18 @@ class MapOperationsHandler:
         self._miner = miner
         self._clock = clock
 
-    def handle(self, process_id: str, mapping: dict[str, str]) -> Process:
+    def handle(self, process_id: str, mapping: dict[str, str], descriptions: dict[str, str] | None = None) -> Process:
+        """mapping: rótulo bruto -> atividade; descriptions: atividade -> descrição opcional."""
         process = self._processes.get(process_id)
         if process is None:
             raise NotFound("Processo não encontrado.")
+        if process.status == ProcessStatus.EMPTY:
+            raise InvalidInput("Carregue um log de eventos antes de mapear as operações.")
 
         clean = validate_mapping(process.operations, mapping)
         # Sem autenticação nesta versão: atividade nova entra no catálogo.
-        self._activities.ensure(sorted(set(clean.values())))
+        given = {k.casefold(): (v or "").strip() for k, v in (descriptions or {}).items()}
+        self._activities.ensure({name: given.get(name.casefold(), "") for name in sorted(set(clean.values()))})
 
         traces = self._processes.traces(process_id)
         apply_mapping(traces, clean)
